@@ -4,9 +4,9 @@ This code is distributed under the CC BY-SA 4.0 License
 
 # What is this?
 A bash wrapper for the megacli tool from LSI to manage MegaRaid clusters.
-The megacli-tool is notorious for being cryptic/hard to use[1].
+The megacli-tool is notorious for being cryptic/hard to use [1].
 
-There is also a new tool called storcli[2] which is much nicer to use, but still not as intuitive as it could be.
+There is also a new tool called storcli [2] which is much nicer to use, but still not as intuitive as it could be.
 
 # Usage
 Open the lsi.sh file and edit your settings (path and enclosure) for more info visit the post at the beginning of the readme.
