@@ -8,7 +8,7 @@
 # description: MegaCLI script to configure and monitor LSI raid cards.
 
 # Full path to the MegaRaid CLI binary
-MegaCli="/usr/local/sbin/MegaCli64"
+MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
 
 # The identifying number of the enclosure. Default for our systems is "8". Use
 # "MegaCli64 -PDlist -a0 | grep "Enclosure Device"" to see what your number
@@ -34,6 +34,7 @@ if [ $# -eq 0 ]
     echo "allinfo       = Print out all settings and information about the card"
     echo "settime       = Set the raid card's time to the current system time"
     echo "setdefaults   = Set preferred default settings for new raid setup"
+    echo "alarm         = Enable (1) or disable (0) the alarm sound"
     echo ""
    exit
  fi
@@ -237,3 +238,17 @@ if [ $1 = "setdefaults" ]
        rm -rf $OUTBBU
    exit
 fi
+
+# The LSI-Raid controller have an alarm that sounds when a hd is removed
+# which may or not can cause harm/lasting damage to people in the vicinity.
+# Use this option to disable or enable the alarm
+if [ $1 = "alarm" ];then
+    if [ "$2" = "0" ];then
+        $MegaCli -AdpSetProp AlarmDsbl -a0
+    elif [ "$2" = "1" ];then
+        $MegaCli -AdpSetProp AlarmEnbl -a0
+    else
+        echo "Either 0 (disable) or 1 (enable) is needed as a parameter"
+    fi
+fi
+
