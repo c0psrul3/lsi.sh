@@ -156,7 +156,15 @@ fi
 if [ $1 = "progress" ]
    then
       DRIVE=`$MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | egrep build | awk '{print $3}'`
-      $MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog
+      OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
+      OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
+      PERC=`echo $OUTPUT|awk {'print $12'}|sed 's/%//'`
+      MIN=`echo $OUTPUT|awk {'print $14'}`
+      ETA=$(($MIN*(100-$PERC)/$PERC))
+      HOUR=$(($ETA/60))
+      RMIN=$(($ETA-60*$HOUR))
+      echo "$OUTPUT"
+      echo "ETA is $ETA min (${HOUR}h ${RMIN}m)"
    exit
 fi
 
