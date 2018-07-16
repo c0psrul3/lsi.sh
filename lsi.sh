@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Calomel.org 
 #     https://calomel.org/megacli_lsi_commands.html
@@ -8,7 +8,13 @@
 # description: MegaCLI script to configure and monitor LSI raid cards.
 
 # Full path to the MegaRaid CLI binary
-MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
+if [[ -e "$(which MegaCli 2>/dev/null)" ]]; then
+    MegaCli=$(which MegaCli)
+elif [[ -e "/usr/local/sbin/MegaCli64" ]]; then
+    MegaCli="/usr/local/sbin/MegaCli64"
+elif [[ -e "/opt/MegaRAID/MegaCli/MegaCli64" ]]; then
+    MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
+fi
 
 # The identifying number of the enclosure. Default for our systems is "8". Use
 # "MegaCli64 -PDlist -a0 | grep "Enclosure Device"" to see what your number
@@ -34,7 +40,6 @@ if [ $# -eq 0 ]
     echo "allinfo       = Print out all settings and information about the card"
     echo "settime       = Set the raid card's time to the current system time"
     echo "setdefaults   = Set preferred default settings for new raid setup"
-    echo "alarm         = Enable (1) or disable (0) the alarm sound"
     echo ""
    exit
  fi
@@ -156,17 +161,7 @@ fi
 if [ $1 = "progress" ]
    then
       DRIVE=`$MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | egrep build | awk '{print $3}'`
-      if [ "$DRIVE" ];then
-         OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
-         OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
-         PERC=`echo $OUTPUT|awk {'print $12'}|sed 's/%//'`
-         MIN=`echo $OUTPUT|awk {'print $14'}`
-         ETA=$(($MIN*(100-$PERC)/$PERC))
-         HOUR=$(($ETA/60))
-         RMIN=$(($ETA-60*$HOUR))
-         echo "$OUTPUT"
-         echo "ETA is $ETA min (${HOUR}h ${RMIN}m)"
-      fi
+      $MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog
    exit
 fi
 
@@ -249,16 +244,4 @@ if [ $1 = "setdefaults" ]
    exit
 fi
 
-# The LSI-Raid controller have an alarm that sounds when a hd is removed
-# which may or not can cause harm/lasting damage to people in the vicinity.
-# Use this option to disable or enable the alarm
-if [ $1 = "alarm" ];then
-    if [ "$2" = "0" ];then
-        $MegaCli -AdpSetProp AlarmDsbl -a0
-    elif [ "$2" = "1" ];then
-        $MegaCli -AdpSetProp AlarmEnbl -a0
-    else
-        echo "Either 0 (disable) or 1 (enable) is needed as a parameter"
-    fi
-fi
-
+### EOF ###
