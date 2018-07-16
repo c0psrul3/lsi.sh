@@ -16,25 +16,30 @@ elif [[ -e "/opt/MegaRAID/MegaCli/MegaCli64" ]]; then
     MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
 fi
 
+if [[ -e "$(which nawk 2>/dev/null)" ]] ; then
+    AWK=$(which nawk)
+elif [[ -e "$(which awk 2>/dev/null)" ]] ; then
+    AWK=$(which awk)
+fi
 # The identifying number of the enclosure. Default for our systems is "8". Use
-# "MegaCli64 -PDlist -a0 | grep "Enclosure Device"" to see what your number
+# "${MegaCli}64 -PDlist -a0 | grep "Enclosure Device"" to see what your number
 # is and set this variable.
 #ENCLOSURE="8"
 if [[ -z $ENCLOSURE ]] ; then
-  if [[ $(MegaCli -PDlist -a0 | awk '/Enclosure Device ID/ {print $NF}' | sort | uniq) > 0 ]] ; then
-    ENCLOSURE=$(MegaCli -PDlist -a0 | awk '/Enclosure Device ID/ {print $NF}' | sort | uniq)
+  if [[ $(${MegaCli} -PDlist -a0 | ${AWK} '/Enclosure Device ID/ {print $NF}' | sort | uniq) > 0 ]] ; then
+    ENCLOSURE=$(${MegaCli} -PDlist -a0 | ${AWK} '/Enclosure Device ID/ {print $NF}' | sort | uniq)
   fi
 fi
 if [[ $ENCLOSURE > 0 ]] ; then
   echo "Found ENCLOSURE Device ID: ${ENCLOSURE}" &>/dev/stderr
 else
   echo "Could not determine ENCLOSURE Device ID for Adapter #0:" &>/dev/stderr
-  MegaCli -PDlist -a0 | awk '/Enclosure Device ID:/ || /Slot Number:/ || /DiskGroup:/ || /Firmware state:/ || /Media Type:/'
+  ${MegaCli} -PDlist -a0 | ${AWK} '/Enclosure Device ID:/ || /Slot Number:/ || /DiskGroup:/ || /Firmware state:/ || /Media Type:/'
   exit
 fi
 
 ## list disk/slot basic info:
-#MegaCli -PDlist -a0 | awk '/^$/ || /WWN:/ || /Enclosure Device ID:/ || /Slot Number:/ || /DiskGroup:/ || /Firmware state:/ || /SAS Address/ || /Connected Port Number:/ || /Inquiry Data:/ || /Media Type:/'
+#${MegaCli} -PDlist -a0 | ${AWK} '/^$/ || /WWN:/ || /Enclosure Device ID:/ || /Slot Number:/ || /DiskGroup:/ || /Firmware state:/ || /SAS Address/ || /Connected Port Number:/ || /Inquiry Data:/ || /Media Type:/'
 
 if [[ $# == 0 ]] || [[ $1 == "-h" ]] || [[ $1 == "help" ]] || [[ $1 == "--help" ]] ; then
   echo "
@@ -63,28 +68,27 @@ fi
 # is running.
 if [ $1 = "status" ]
    then
-      $MegaCli -LDInfo -Lall -aALL -NoLog
+      ${MegaCli} -LDInfo -Lall -aALL -NoLog
       echo "###############################################"
-      $MegaCli -AdpPR -Info -aALL -NoLog
+      ${MegaCli} -AdpPR -Info -aALL -NoLog
       echo "###############################################"
-      $MegaCli -LDCC -ShowProg -LALL -aALL -NoLog
+      ${MegaCli} -LDCC -ShowProg -LALL -aALL -NoLog
    exit
 fi
 
 # Shows the state of all drives and if they are online, unconfigured or missing.
-if [ $1 = "drives" ]
-   then
-      $MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g'
+if [ $1 = "drives" ] ; then
+      ${MegaCli} -PDlist -aALL -NoLog | egrep 'Slot|state' | ${AWK} '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g'
    exit
 fi
 
 # Use to blink the light on the slot in question. Hit enter again to turn the blinking light off.
 if [ $1 = "ident" ]
    then
-      $MegaCli  -PdLocate -start -physdrv[$ENCLOSURE:$2] -a0 -NoLog
+      ${MegaCli}  -PdLocate -start -physdrv[$ENCLOSURE:$2] -a0 -NoLog
       logger "`hostname` - identifying enclosure $ENCLOSURE, drive $2 "
       read -p "Press [Enter] key to turn off light..."
-      $MegaCli  -PdLocate -stop -physdrv[$ENCLOSURE:$2] -a0 -NoLog
+      ${MegaCli}  -PdLocate -stop -physdrv[$ENCLOSURE:$2] -a0 -NoLog
    exit
 fi
 
@@ -96,9 +100,9 @@ fi
 if [ $1 = "good" ]
    then
       # set Unconfigured(bad) to Unconfigured(good)
-      $MegaCli -PDMakeGood -PhysDrv[$ENCLOSURE:$2] -a0 -NoLog
+      ${MegaCli} -PDMakeGood -PhysDrv[$ENCLOSURE:$2] -a0 -NoLog
       # clear 'Foreign' flag or invalid raid header on replacement drive
-      $MegaCli -CfgForeign -Clear -aALL -NoLog
+      ${MegaCli} -CfgForeign -Clear -aALL -NoLog
    exit
 fi
 
@@ -109,7 +113,7 @@ fi
 # read/write retries or corrupt data. 
 if [ $1 = "errors" ]
    then
-      echo "Slot Number: 0"; $MegaCli -PDlist -aALL -NoLog | egrep -i 'error|fail|slot' | egrep -v ' 0'
+      echo "Slot Number: 0"; ${MegaCli} -PDlist -aALL -NoLog | egrep -i 'error|fail|slot' | egrep -v ' 0'
    exit
 fi
 
@@ -118,7 +122,7 @@ fi
 # automatically. You want caching for speed so make sure the battery is ok.
 if [ $1 = "bat" ]
    then
-      $MegaCli -AdpBbuCmd -aAll -NoLog
+      ${MegaCli} -AdpBbuCmd -aAll -NoLog
    exit
 fi
 
@@ -135,7 +139,7 @@ fi
 # but it works.
 if [ $1 = "batrelearn" ]
    then
-      $MegaCli -AdpBbuCmd -BbuLearn -aALL -NoLog
+      ${MegaCli} -AdpBbuCmd -BbuLearn -aALL -NoLog
    exit
 fi
 
@@ -152,20 +156,20 @@ if [ $1 = "replace" ]
    then
       logger "`hostname` - REPLACE enclosure $ENCLOSURE, drive $2 "
       # set Unconfigured(bad) to Unconfigured(good)
-      $MegaCli -PDMakeGood -PhysDrv[$ENCLOSURE:$2] -a0 -NoLog
+      ${MegaCli} -PDMakeGood -PhysDrv[$ENCLOSURE:$2] -a0 -NoLog
       # clear 'Foreign' flag or invalid raid header on replacement drive
-      $MegaCli -CfgForeign -Clear -aALL -NoLog
+      ${MegaCli} -CfgForeign -Clear -aALL -NoLog
       # set drive as hot spare
-      $MegaCli -PDHSP -Set -PhysDrv [$ENCLOSURE:$2] -a0 -NoLog
+      ${MegaCli} -PDHSP -Set -PhysDrv [$ENCLOSURE:$2] -a0 -NoLog
       # show rebuild progress on replacement drive just to make sure it starts
-      $MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$2] -a0 -NoLog
+      ${MegaCli} -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$2] -a0 -NoLog
    exit
 fi
 
 # Print all the logs from the LSI raid card. You can grep on the output.
 if [ $1 = "logs" ]
    then
-      $MegaCli -FwTermLog -Dsply -aALL -NoLog
+      ${MegaCli} -FwTermLog -Dsply -aALL -NoLog
    exit
 fi
 
@@ -173,20 +177,21 @@ fi
 # will then query the rebuilding drive to see what percentage it is rebuilt and
 # how much time it has taken so far. You can then guess-ti-mate the
 # completion time.
-if [ $1 = "progress" ]
-   then
-      DRIVE=`$MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | egrep build | awk '{print $3}'`
-      #$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog
-      if [ "$DRIVE" ];then
-         OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
-         OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
-         PERC=`echo $OUTPUT|awk {'print $12'}|sed 's/%//'`
-         MIN=`echo $OUTPUT|awk {'print $14'}`
-         ETA=$(($MIN*(100-$PERC)/$PERC))
-         HOUR=$(($ETA/60))
-         RMIN=$(($ETA-60*$HOUR))
-         echo "$OUTPUT"
-         echo "ETA is $ETA min (${HOUR}h ${RMIN}m)"
+if [ $1 = "progress" ] ; then
+      DRIVE=$(${MegaCli} -PDlist -aALL -NoLog | egrep 'Slot|state' | ${AWK} '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | egrep build | ${AWK} '{print $3}')
+      if [[ -z $DRIVE ]] ; then
+        echo "No Drives in rebuild process"
+      fi
+      #${MegaCli} -PDRbld -ShowProg -PhysDrv [${ENCLOSURE}:${DRIVE}] -a0 -NoLog
+      OUTPUT=$(${MegaCli} -PDRbld -ShowProg -PhysDrv [${ENCLOSURE}:${DRIVE}] -a0 -NoLog)
+      OUTPUT=$(${MegaCli} -PDRbld -ShowProg -PhysDrv [${ENCLOSURE}:${DRIVE}] -a0 -NoLog)
+      PERC=$(echo ${OUTPUT}|${AWK} '{print $12}'|sed 's/%//')
+      MIN=$(echo ${OUTPUT}|${AWK} '{print $14}')
+      ETA=$((${MIN}*(100-${PERC})/${PERC}))
+      HOUR=$((${ETA}/60))
+      RMIN=$((${ETA}-60*${HOUR}))
+      echo "$OUTPUT"
+      echo "ETA is $ETA min (${HOUR}h ${RMIN}m)"
    exit
 fi
 
@@ -199,11 +204,11 @@ if [ $1 = "checkNemail" ]
       EMAIL="raidadmin@localhost"
 
       # Check if raid is in good condition
-      STATUS=`$MegaCli -LDInfo -Lall -aALL -NoLog | egrep -i 'fail|degrad|error'`
+      STATUS=$(${MegaCli} -LDInfo -Lall -aALL -NoLog | egrep -i 'fail|degrad|error')
 
       # On bad raid status send email with basic drive information
       if [ "$STATUS" ]; then
-         $MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | mail -s `hostname`' - RAID Notification' $EMAIL
+         ${MegaCli} -PDlist -aALL -NoLog | egrep 'Slot|state' | ${AWK} '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | mail -s `hostname`' - RAID Notification' $EMAIL
       fi
 fi
 
@@ -213,7 +218,7 @@ fi
 # term you need.
 if [ $1 = "allinfo" ]
    then
-      $MegaCli -AdpAllInfo -aAll -NoLog
+      ${MegaCli} -AdpAllInfo -aAll -NoLog
    exit
 fi
 
@@ -222,9 +227,9 @@ fi
 # think the raid card's time might drift too much. 
 if [ $1 = "settime" ]
    then
-      $MegaCli -AdpGetTime -aALL -NoLog
-      $MegaCli -AdpSetTime `date +%Y%m%d` `date +%H:%M:%S` -aALL -NoLog
-      $MegaCli -AdpGetTime -aALL -NoLog
+      ${MegaCli} -AdpGetTime -aALL -NoLog
+      ${MegaCli} -AdpSetTime `date +%Y%m%d` `date +%H:%M:%S` -aALL -NoLog
+      ${MegaCli} -AdpGetTime -aALL -NoLog
    exit
 fi
 
@@ -236,35 +241,35 @@ fi
 if [ $1 = "setdefaults" ]
    then
       # Read Cache enabled specifies that all reads are buffered in cache memory. 
-       $MegaCli -LDSetProp -Cached -LAll -aAll -NoLog
+       ${MegaCli} -LDSetProp -Cached -LAll -aAll -NoLog
       # Adaptive Read-Ahead if the controller receives several requests to sequential sectors
-       $MegaCli -LDSetProp ADRA -LALL -aALL -NoLog
+       ${MegaCli} -LDSetProp ADRA -LALL -aALL -NoLog
       # Hard Disk cache policy enabled allowing the drive to use internal caching too
-       $MegaCli -LDSetProp EnDskCache -LAll -aAll -NoLog
+       ${MegaCli} -LDSetProp EnDskCache -LAll -aAll -NoLog
       # Write-Back cache enabled
-       $MegaCli -LDSetProp WB -LALL -aALL -NoLog
+       ${MegaCli} -LDSetProp WB -LALL -aALL -NoLog
       # Continue booting with data stuck in cache. Set Boot with Pinned Cache Enabled.
-       $MegaCli -AdpSetProp -BootWithPinnedCache -1 -aALL -NoLog
+       ${MegaCli} -AdpSetProp -BootWithPinnedCache -1 -aALL -NoLog
       # PATROL run every 672 hours or monthly (RAID6 77TB @60% rebuild takes 21 hours)
-       $MegaCli -AdpPR -SetDelay 672 -aALL -NoLog
+       ${MegaCli} -AdpPR -SetDelay 672 -aALL -NoLog
       # Check Consistency every 672 hours or monthly
-       $MegaCli -AdpCcSched -SetDelay 672 -aALL -NoLog
+       ${MegaCli} -AdpCcSched -SetDelay 672 -aALL -NoLog
       # Enable autobuild when a new Unconfigured(good) drive is inserted or set to hot spare
-       $MegaCli -AdpAutoRbld -Enbl -a0 -NoLog
+       ${MegaCli} -AdpAutoRbld -Enbl -a0 -NoLog
       # RAID rebuild rate to 60% (build quick before another failure)
-       $MegaCli -AdpSetProp \{RebuildRate -60\} -aALL -NoLog
+       ${MegaCli} -AdpSetProp \{RebuildRate -60\} -aALL -NoLog
       # RAID check consistency rate to 60% (fast parity checks)
-       $MegaCli -AdpSetProp \{CCRate -60\} -aALL -NoLog
+       ${MegaCli} -AdpSetProp \{CCRate -60\} -aALL -NoLog
       # Enable Native Command Queue (NCQ) on all drives
-       $MegaCli -AdpSetProp NCQEnbl -aAll -NoLog
+       ${MegaCli} -AdpSetProp NCQEnbl -aAll -NoLog
       # Sound alarm disabled (server room is too loud anyways)
-       $MegaCli -AdpSetProp AlarmDsbl -aALL -NoLog
+       ${MegaCli} -AdpSetProp AlarmDsbl -aALL -NoLog
       # Use write-back cache mode even if BBU is bad. Make sure your machine is on UPS too.
-       $MegaCli -LDSetProp CachedBadBBU -LAll -aAll -NoLog
+       ${MegaCli} -LDSetProp CachedBadBBU -LAll -aAll -NoLog
       # Disable auto learn BBU check which can severely affect raid speeds
        OUTBBU=$(mktemp /tmp/output.XXXXXXXXXX)
        echo "autoLearnMode=1" > $OUTBBU
-       $MegaCli -AdpBbuCmd -SetBbuProperties -f $OUTBBU -a0 -NoLog
+       ${MegaCli} -AdpBbuCmd -SetBbuProperties -f $OUTBBU -a0 -NoLog
        rm -rf $OUTBBU
    exit
 fi
@@ -274,9 +279,9 @@ fi
 # Use this option to disable or enable the alarm
 if [ $1 = "alarm" ];then
     if [ "$2" = "0" ];then
-        $MegaCli -AdpSetProp AlarmDsbl -a0
+        ${MegaCli} -AdpSetProp AlarmDsbl -a0
     elif [ "$2" = "1" ];then
-        $MegaCli -AdpSetProp AlarmEnbl -a0
+        ${MegaCli} -AdpSetProp AlarmEnbl -a0
     else
         echo "Either 0 (disable) or 1 (enable) is needed as a parameter"
     fi
