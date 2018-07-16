@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Calomel.org 
 #     https://calomel.org/megacli_lsi_commands.html
@@ -8,36 +8,56 @@
 # description: MegaCLI script to configure and monitor LSI raid cards.
 
 # Full path to the MegaRaid CLI binary
-MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
+if [[ -e "$(which MegaCli 2>/dev/null)" ]]; then
+    MegaCli=$(which MegaCli)
+elif [[ -e "/usr/local/sbin/MegaCli64" ]]; then
+    MegaCli="/usr/local/sbin/MegaCli64"
+elif [[ -e "/opt/MegaRAID/MegaCli/MegaCli64" ]]; then
+    MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
+fi
 
 # The identifying number of the enclosure. Default for our systems is "8". Use
 # "MegaCli64 -PDlist -a0 | grep "Enclosure Device"" to see what your number
 # is and set this variable.
-ENCLOSURE="8"
+#ENCLOSURE="8"
+if [[ -z $ENCLOSURE ]] ; then
+  if [[ $(MegaCli -PDlist -a0 | awk '/Enclosure Device ID/ {print $NF}' | sort | uniq) > 0 ]] ; then
+    ENCLOSURE=$(MegaCli -PDlist -a0 | awk '/Enclosure Device ID/ {print $NF}' | sort | uniq)
+  fi
+fi
+if [[ $ENCLOSURE > 0 ]] ; then
+  echo "Found ENCLOSURE Device ID: ${ENCLOSURE}" &>/dev/stderr
+else
+  echo "Could not determine ENCLOSURE Device ID for Adapter #0:" &>/dev/stderr
+  MegaCli -PDlist -a0 | awk '/Enclosure Device ID:/ || /Slot Number:/ || /DiskGroup:/ || /Firmware state:/ || /Media Type:/'
+  exit
+fi
 
-if [ $# -eq 0 ]
-   then
-    echo ""
-    echo "            OBPG  .:.  lsi.sh $arg1 $arg2"
-    echo "-----------------------------------------------------"
-    echo "status        = Status of Virtual drives (volumes)"
-    echo "drives        = Status of hard drives"
-    echo "ident \$slot   = Blink light on drive (need slot number)"
-    echo "good \$slot    = Simply makes the slot \"Unconfigured(good)\" (need slot number)"
-    echo "replace \$slot = Replace \"Unconfigured(bad)\" drive (need slot number)"
-    echo "progress      = Status of drive rebuild"
-    echo "errors        = Show drive errors which are non-zero"
-    echo "bat           = Battery health and capacity"
-    echo "batrelearn    = Force BBU re-learn cycle"
-    echo "logs          = Print card logs"
-    echo "checkNemail   = Check volume(s) and send email on raid errors"
-    echo "allinfo       = Print out all settings and information about the card"
-    echo "settime       = Set the raid card's time to the current system time"
-    echo "setdefaults   = Set preferred default settings for new raid setup"
-    echo "alarm         = Enable (1) or disable (0) the alarm sound"
-    echo ""
-   exit
- fi
+## list disk/slot basic info:
+#MegaCli -PDlist -a0 | awk '/^$/ || /WWN:/ || /Enclosure Device ID:/ || /Slot Number:/ || /DiskGroup:/ || /Firmware state:/ || /SAS Address/ || /Connected Port Number:/ || /Inquiry Data:/ || /Media Type:/'
+
+if [[ $# == 0 ]] || [[ $1 == "-h" ]] || [[ $1 == "help" ]] || [[ $1 == "--help" ]] ; then
+  echo "
+              OBPG  .:.  lsi.sh $arg1 $arg2
+  -----------------------------------------------------
+  status        = Status of Virtual drives (volumes)
+  drives        = Status of hard drives
+  ident \$slot   = Blink light on drive (need slot number)
+  good \$slot    = Simply makes the slot \Unconfigured(good)\ (need slot number)
+  replace \$slot = Replace \Unconfigured(bad)\ drive (need slot number)
+  progress      = Status of drive rebuild
+  errors        = Show drive errors which are non-zero
+  bat           = Battery health and capacity
+  batrelearn    = Force BBU re-learn cycle
+  logs          = Print card logs
+  checkNemail   = Check volume(s) and send email on raid errors
+  allinfo       = Print out all settings and information about the card
+  settime       = Set the raid card's time to the current system time
+  setdefaults   = Set preferred default settings for new raid setup
+  alarm         = Enable (1) or disable (0) the alarm sound
+"
+  exit
+fi
 
 # General status of all RAID virtual disks or volumes and if PATROL disk check
 # is running.
@@ -156,6 +176,7 @@ fi
 if [ $1 = "progress" ]
    then
       DRIVE=`$MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | egrep build | awk '{print $3}'`
+      #$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog
       if [ "$DRIVE" ];then
          OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
          OUTPUT=`$MegaCli -PDRbld -ShowProg -PhysDrv [$ENCLOSURE:$DRIVE] -a0 -NoLog`
@@ -166,7 +187,6 @@ if [ $1 = "progress" ]
          RMIN=$(($ETA-60*$HOUR))
          echo "$OUTPUT"
          echo "ETA is $ETA min (${HOUR}h ${RMIN}m)"
-      fi
    exit
 fi
 
