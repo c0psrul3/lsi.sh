@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Calomel.org 
 #     https://calomel.org/megacli_lsi_commands.html
@@ -8,13 +8,7 @@
 # description: MegaCLI script to configure and monitor LSI raid cards.
 
 # Full path to the MegaRaid CLI binary
-if [[ -e "$(which MegaCli 2>/dev/null)" ]]; then
-    MegaCli=$(which MegaCli)
-elif [[ -e "/usr/local/sbin/MegaCli64" ]]; then
-    MegaCli="/usr/local/sbin/MegaCli64"
-elif [[ -e "/opt/MegaRAID/MegaCli/MegaCli64" ]]; then
-    MegaCli="/opt/MegaRAID/MegaCli/MegaCli64"
-fi
+MegaCli="/usr/local/sbin/MegaCli64"
 
 # The identifying number of the enclosure. Default for our systems is "8". Use
 # "MegaCli64 -PDlist -a0 | grep "Enclosure Device"" to see what your number
